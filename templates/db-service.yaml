@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-db
+spec:
+  ports:
+  - port: 3306
+    name: mysql
+  clusterIP: None # Esto lo convierte en un Headless Service
+  selector:
+    app: mysql
+    instance: {{ .Release.Name }}

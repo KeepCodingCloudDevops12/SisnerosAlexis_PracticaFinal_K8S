@@ -1,0 +1,10 @@
+{{- $fullName := include "practica-final-k8s.fullname" . -}}
+{{- $ingressHost := .Values.ingress.host -}}
+
+Tu despliegue de WordPress está listo.
+
+1. Si estás usando Minikube, asegúrate de que el túnel esté activo en una terminal separada:
+  minikube tunnel
+
+2. Accede a tu aplicación abriendo la siguiente URL en tu navegador:
+  http://{{ $ingressHost }}
