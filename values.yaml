@@ -1,25 +1,135 @@
-replicaCount: 3
-autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 5
-  targetCPUUtilizationPercentage: 70
-service:
-  type: ClusterIP
-  port: 80
-ingress:
-  enabled: true
-  host: wordpress.127-0-0-1.nip.io
-  tls: []
-database:
-  password: ""
+# =============================================================================
+# CONFIGURACIÓN DE WORDPRESS
+# =============================================================================
+wordpress:
+  # -- El nombre del repositorio de la imagen de Docker a utilizar para WordPress.
+  image:
+    repository: wordpress
+    # -- La política de pull de la imagen.
+    pullPolicy: IfNotPresent
+    # -- El tag de la imagen de WordPress. Evitar 'latest'. Usar una versión específica.
+    tag: "6.5.3-apache"
+
+  # -- Número inicial de réplicas para el despliegue de WordPress.
+  replicaCount: 2
+
+  # -- Configuración del ServiceAccount para los pods de WordPress.
+  serviceAccount:
+    # -- Especifica si se debe crear un ServiceAccount.
+    create: true
+    # -- Anotaciones para añadir al ServiceAccount.
+    annotations: {}
+    # -- El nombre del ServiceAccount a usar. Si no se establece y create es true, se genera un nombre.
+    name: "wordpress-sa"
+
+  # -- Configuración del Service que expone WordPress dentro del clúster.
+  service:
+    # -- Tipo de Service para WordPress.
+    type: ClusterIP
+    # -- Puerto del Service.
+    port: 80
+
+  # -- Configuración del Ingress para exponer WordPress al exterior.
+  ingress:
+    # -- Habilita o deshabilita la creación del Ingress.
+    enabled: true
+    # -- (Opcional) Nombre del IngressClass a utilizar. Por ejemplo: "nginx", "traefik".
+    ingressClassName: "nginx"
+    # -- (Opcional) Anotaciones para el Ingress.
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    # -- El hostname para acceder a WordPress. Debe apuntar a la IP de tu Ingress Controller.
+    host: wordpress.127-0-0-1.nip.io
+    # -- Configuración de TLS para el Ingress (dejar vacío si no se usa HTTPS).
+    tls: []
+
+  # -- Configuración de recursos (CPU/Memoria) para los pods de WordPress.
+  # Es fundamental para el autoscaling y la estabilidad.
+  resources:
+    requests:
+      cpu: "100m" # 10% de un core de CPU
+      memory: "128Mi"
+    limits:
+      cpu: "500m" # 50% de un core de CPU
+      memory: "256Mi"
+
+  # -- Configuración del HorizontalPodAutoscaler (HPA).
+  autoscaling:
+    # -- Habilita o deshabilita el HPA.
+    enabled: true
+    # -- Número mínimo de réplicas que el HPA mantendrá.
+    minReplicas: 2
+    # -- Número máximo de réplicas a las que el HPA puede escalar.
+    maxReplicas: 5
+    # -- Porcentaje de uso de CPU objetivo para disparar el escalado.
+    targetCPUUtilizationPercentage: 70
+
+# =============================================================================
+# CONFIGURACIÓN DE LA BASE DE DATOS (MYSQL)
+# =============================================================================
+mysql:
+  # -- El nombre del repositorio de la imagen de Docker a utilizar para MySQL.
+  image:
+    repository: mysql
+    # -- La política de pull de la imagen.
+    pullPolicy: IfNotPresent
+    # -- El tag de la imagen de MySQL. Evitar 'latest'. Usar una versión específica.
+    tag: "8.0"
+
+  # -- Configuración de autenticación para la base de datos.
+  # Estos valores se pasarán como variables de entorno al contenedor de MySQL y WordPress.
+  # IMPORTANTE: Para producción, estos valores deberían gestionarse con un Secret externo.
+  auth:
+    # -- Contraseña para el usuario 'root' de MySQL. Es obligatorio. CAMBIAR ESTE VALOR.
+    rootPassword: "changeme-root-password"
+    # -- Nombre de la base de datos que se creará.
+    database: "wordpress_db"
+    # -- Nombre del usuario que se creará para WordPress.
+    user: "wordpress_user"
+    # -- Contraseña para el nuevo usuario de WordPress. CAMBIAR ESTE VALOR.
+    password: "changeme-wordpress-password"
+
+  # -- Configuración de recursos (CPU/Memoria) para el pod de MySQL.
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m" # 1 core de CPU
+      memory: "512Mi"
+
+  # -- Configuración de persistencia para los datos de MySQL.
   persistence:
+    # -- Habilita o deshabilita el almacenamiento persistente.
+    enabled: true
+    # -- Tamaño del PersistentVolumeClaim (PVC) a solicitar.
     size: 5Gi
-image:
-  repository: wordpress
-  pullPolicy: IfNotPresent
-  tag: "latest"
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
+    # -- (Opcional) StorageClass a utilizar. Si se deja vacío, usará la de por defecto.
+    # storageClassName: ""
+
+  # -- Probes de salud para el contenedor de MySQL (liveness y readiness).
+  # Esto es clave para la resiliencia que te pedían.
+  livenessProbe:
+    # -- Habilita la sonda de vida.
+    enabled: true
+    # -- Segundos a esperar antes de la primera comprobación.
+    initialDelaySeconds: 30
+    # -- Frecuencia (en segundos) de la comprobación.
+    periodSeconds: 10
+    # -- Segundos después de los cuales la sonda se considera fallida.
+    timeoutSeconds: 5
+    # -- Número de fallos antes de reiniciar el contenedor.
+    failureThreshold: 3
+  readinessProbe:
+    # -- Habilita la sonda de disponibilidad.
+    enabled: true
+    # -- Segundos a esperar antes de la primera comprobación.
+
+    initialDelaySeconds: 5
+    # -- Frecuencia (en segundos) de la comprobación.
+    periodSeconds: 10
+    # -- Segundos después de los cuales la sonda se considera fallida.
+    timeoutSeconds: 1
+    # -- Número de fallos antes de marcar el Pod como 'NotReady'.
+    failureThreshold: 3

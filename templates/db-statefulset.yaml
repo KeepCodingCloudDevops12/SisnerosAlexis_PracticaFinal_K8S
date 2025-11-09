@@ -3,29 +3,72 @@ kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}-db
 spec:
-  serviceName: "{{ .Release.Name }}-db-service"
-  replicas: 1
+  serviceName: "{{ .Release.Name }}-db"
+  replicas: 1 # Para una BD es común empezar con 1 réplica.
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-db
+      app: mysql
+      instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-db
+        app: mysql
+        instance: {{ .Release.Name }}
     spec:
       containers:
       - name: mysql
-        image: "mysql:5.7"
-        # ---- La indentación de las siguientes 3 secciones ha sido corregida ----
+        # <-- CAMBIO AQUÍ: Imagen configurable desde values.yaml.
+        image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
+        imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
         env:
+        # <-- CAMBIO AQUÍ: Se leen todas las credenciales desde el secret.
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-db-secrets
               key: mysql-root-password
+        # <-- CAMBIO AQUÍ: Variables para crear la BD y el usuario de WordPress automáticamente.
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-db-secrets
+              key: wordpress-database-name
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-db-secrets
+              key: wordpress-user
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-db-secrets
+              key: wordpress-password
         ports:
         - containerPort: 3306
           name: mysql
+        # <-- CAMBIO AQUÍ: Se añaden las sondas de salud como pidió el profesor.
+        livenessProbe:
+          exec:
+            command: ["mysqladmin", "ping", "-h", "localhost"]
+          initialDelaySeconds: {{ .Values.mysql.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.mysql.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.mysql.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.mysql.livenessProbe.failureThreshold }}
+        readinessProbe:
+          exec:
+            command: ["mysqladmin", "ping", "-h", "localhost"]
+          initialDelaySeconds: {{ .Values.mysql.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.mysql.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.mysql.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.mysql.readinessProbe.failureThreshold }}
+        # <-- CAMBIO AQUÍ: Se añaden los resources para la BD. (Añadiremos esto al values.yaml)
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "1000m" # 1 core
+            memory: "512Mi"
         volumeMounts:
         - name: mysql-persistent-storage
           mountPath: /var/lib/mysql
@@ -36,4 +79,5 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: {{ .Values.database.persistence.size }}
+          # <-- CAMBIO AQUÍ: Ruta de storage actualizada.
+          storage: {{ .Values.mysql.persistence.size }}

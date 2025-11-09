@@ -1,10 +1,12 @@
-{{- $fullName := include "practica-final-k8s.fullname" . -}}
-{{- $ingressHost := .Values.ingress.host -}}
+{{- if .Values.wordpress.ingress.enabled }}
+Tu aplicación WordPress ha sido desplegada. Puedes acceder a ella en la siguiente URL:
+http://{{ .Values.wordpress.ingress.host }}
+{{- else }}
+Tu aplicación WordPress ha sido desplegada, pero no se ha creado un Ingress.
+Para acceder a ella, puedes usar 'kubectl port-forward':
+  kubectl port-forward svc/{{ include "practica-final-k8s.fullname" . }} 8080:80
+Y luego abrir http://localhost:8080 en tu navegador.
+{{- end }}
 
-Tu despliegue de WordPress está listo.
-
-1. Si estás usando Minikube, asegúrate de que el túnel esté activo en una terminal separada:
-  minikube tunnel
-
-2. Accede a tu aplicación abriendo la siguiente URL en tu navegador:
-  http://{{ $ingressHost }}
+Para obtener el estado de tu despliegue, ejecuta:
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}

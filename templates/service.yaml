@@ -2,10 +2,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "practica-final-k8s.fullname" . }}
+  labels:
+    {{- include "practica-final-k8s.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  # <-- CAMBIO AQUÍ: Rutas actualizadas
+  type: {{ .Values.wordpress.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
+    - port: {{ .Values.wordpress.service.port }}
       targetPort: http
       protocol: TCP
       name: http

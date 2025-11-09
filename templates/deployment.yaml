@@ -1,9 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "practica-final-k8s.fullname" . }}
+  name: {{ include "practica-final-k8s.fullname" . }}-wordpress
+  labels:
+    app.kubernetes.io/name: {{ include "practica-final-k8s.name" . }}
+    helm.sh/chart: {{ include "practica-final-k8s.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app: wordpress
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.wordpress.replicaCount }}
   selector:
     matchLabels:
       app: wordpress
@@ -14,25 +20,49 @@ spec:
         app: wordpress
         instance: {{ .Release.Name }}
     spec:
+      # <-- CAMBIO AQUÍ: Se especifica el ServiceAccount a utilizar.
+      {{- if .Values.wordpress.serviceAccount.create }}
+      serviceAccountName: {{ .Values.wordpress.serviceAccount.name | default (include "practica-final-k8s.fullname" .) }}
+      {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: wordpress
+          # <-- CAMBIO AQUÍ: Rutas de imagen actualizadas.
+          image: "{{ .Values.wordpress.image.repository }}:{{ .Values.wordpress.image.tag }}"
+          imagePullPolicy: {{ .Values.wordpress.image.pullPolicy }}
           env:
             - name: WORDPRESS_DB_HOST
-              # Apunta al nombre del servicio de la BD
+              # Apunta al nombre del servicio headless de la BD
               value: {{ .Release.Name }}-db
+            # <-- CAMBIO AQUÍ: Se utiliza el usuario de la BD de WordPress, no 'root'.
             - name: WORDPRESS_DB_USER
-              value: root
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-db-secrets
+                  key: wordpress-user
+            # <-- CAMBIO AQUÍ: Se utiliza la contraseña del usuario de WordPress.
             - name: WORDPRESS_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-db-secrets
-                  key: mysql-root-password
+                  key: wordpress-password
+            # <-- CAMBIO AQUÍ: Se añade el nombre de la base de datos.
+            - name: WORDPRESS_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-db-secrets
+                  key: wordpress-database-name
           ports:
             - name: http
               containerPort: 80
               protocol: TCP
+          # <-- CAMBIO AQUÍ: Se añaden los resources.
+          resources:
+            requests:
+              cpu: {{ .Values.wordpress.resources.requests.cpu }}
+              memory: {{ .Values.wordpress.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.wordpress.resources.limits.cpu }}
+              memory: {{ .Values.wordpress.resources.limits.memory }}
           livenessProbe:
             httpGet:
               path: /

@@ -1,22 +1,22 @@
-{{- if .Values.autoscaling.enabled }}
+{{- if .Values.wordpress.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "practica-final-k8s.fullname" . }}
+  name: {{ include "practica-final-k8s.fullname" . }}-wordpress
   labels:
     {{- include "practica-final-k8s.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "practica-final-k8s.fullname" . }}
-  minReplicas: {{ .Values.autoscaling.minReplicas }}
-  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+    name: {{ include "practica-final-k8s.fullname" . }}-wordpress
+  minReplicas: {{ .Values.wordpress.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.wordpress.autoscaling.maxReplicas }}
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+        averageUtilization: {{ .Values.wordpress.autoscaling.targetCPUUtilizationPercentage }}
 {{- end }}
