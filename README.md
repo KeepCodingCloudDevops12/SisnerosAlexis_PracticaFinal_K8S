@@ -37,7 +37,7 @@ La aplicación se despliega utilizando los siguientes objetos de Kubernetes:
 
 1.  **Clonar el repositorio:**
     ```bash
-    git clone <URL-de-tu-repositorio-en-github>
+    git clone https://github.com/KeepCodingCloudDevops12/SisnerosAlexis_PracticaFinal_K8S
     cd practica-final-k8s
     ```
 
@@ -56,8 +56,6 @@ Para garantizar el acceso y poder verificar el funcionamiento de la aplicación 
 
 1.  **Abrir un nuevo terminal y ejecutar:**
     ```bash
-    # El nombre 'mi-blog-practica-final-k8s' se genera a partir del nombre de la release.
-    # Si usaste un nombre de release diferente a 'mi-blog', ajústalo.
     kubectl port-forward svc/mi-blog-practica-final-k8s 8080:80
     ```
 
